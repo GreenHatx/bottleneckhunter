@@ -133,14 +133,28 @@ tools_by_name = {t.name: t for t in tools}
 # Hizli/gecici cozum (guvenligi dusurur): verify=False
 http_client = httpx.Client(verify=False)   # PROD'da kurumsal CA paketiyle degistir
 
-llm_base = ChatOpenAI(
-    model=os.environ.get("BOTTLENECK_LLM_MODEL", "gpt-4o"),
-    base_url=os.environ.get("BOTTLENECK_LLM_BASE_URL"),
-    api_key=os.environ.get("BOTTLENECK_LLM_API_KEY"),
-    temperature=0,                                   # tool secimi tutarli olsun
-    http_client=http_client,
-)
-llm = llm_base.bind_tools(tools)   # otomatik agent (ask) icin tool'lu surum
+llm_base = None
+llm = None
+
+
+def configure_llm():
+    """Validate settings and initialize the optional AI layer on first use."""
+    global llm_base, llm
+    if llm_base is not None:
+        return llm_base
+    base_url = os.environ.get("BOTTLENECK_LLM_BASE_URL")
+    api_key = os.environ.get("BOTTLENECK_LLM_API_KEY")
+    if not base_url or not api_key:
+        raise RuntimeError("AI yorumu icin BOTTLENECK_LLM_BASE_URL ve BOTTLENECK_LLM_API_KEY gerekli")
+    llm_base = ChatOpenAI(
+        model=os.environ.get("BOTTLENECK_LLM_MODEL", "gpt-4o"),
+        base_url=base_url,
+        api_key=api_key,
+        temperature=0,
+        http_client=http_client,
+    )
+    llm = llm_base.bind_tools(tools)
+    return llm_base
 
 SYSTEM = SystemMessage(content=(
     "Sen bir proxy performans analiz asistanisin. Kullanici bir proxy/web sitesi "
@@ -167,7 +181,7 @@ def yorumla(result: dict, ek_soru: str = "") -> str:
     icerik = "Olcum sonucu:\n" + json.dumps(ozet, ensure_ascii=False, indent=2)
     if ek_soru:
         icerik += f"\n\nEk soru: {ek_soru}"
-    response = llm_base.invoke([YORUMCU, HumanMessage(content=icerik)])
+    response = configure_llm().invoke([YORUMCU, HumanMessage(content=icerik)])
     print(response.content)
     return response.content
 
@@ -182,6 +196,7 @@ def yorumla_dosya(json_path: str, ek_soru: str = "") -> str:
 # Agent dongusu (senin ask fonksiyonunun cok-turlu, saglamlastirilmis hali)
 # --------------------------------------------------------------------------- #
 def ask(soru: str, max_steps: int = 5):
+    configure_llm()
     print(f"\nSoru: {soru}")
     messages = [SYSTEM, HumanMessage(content=soru)]
 

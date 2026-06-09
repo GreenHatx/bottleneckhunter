@@ -40,6 +40,9 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
+from reporting import render_comparison_html, report_envelope
+from safety import MAX_CONCURRENCY, MAX_REQUESTS_PER_LEVEL, validate_active_test
+
 try:
     import pycurl
 except ImportError:
@@ -876,7 +879,11 @@ def save_report(result, prefix="bottleneck"):
 
     json_path = f"{base}.json"
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+        json.dump(report_envelope(result), f, ensure_ascii=False, indent=2)
+
+    html_path = f"{base}.html"
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(render_comparison_html(result))
 
     csv_path = f"{base}_samples.csv"
     rows = _collect_samples(result)
@@ -904,6 +911,7 @@ def save_report(result, prefix="bottleneck"):
 
     print("\n" + c("--- Rapor kaydedildi ---", Ansi.GREEN, bold=True))
     print("  JSON   : " + c(json_path, Ansi.GREEN))
+    print("  HTML   : " + c(html_path, Ansi.GREEN))
     if csv_path:
         print("  CSV    : " + c(csv_path, Ansi.GREEN))
     print("  Ozet   : " + c(txt_path, Ansi.GREEN))
@@ -1057,6 +1065,8 @@ def build_parser():
     common.add_argument("--no-color", action="store_true", help="Renkli ciktiyi kapat")
     common.add_argument("--no-save", action="store_true", help="Raporu dosyaya yazma")
     common.add_argument("--prefix", default="bottleneck", help="Cikti dosya on eki")
+    common.add_argument("--authorized-target", action="store_true",
+                        help="Aktif yuk testi icin hedef yetkisini onayla")
 
     p = argparse.ArgumentParser(
         prog="bottleneck_hunter.py",
@@ -1077,7 +1087,7 @@ def build_parser():
     sp = sub.add_parser("load", parents=[common], help="Eszamanliliik / yuk")
     sp.add_argument("--url", required=True)
     sp.add_argument("--levels", default="10,25,50,100")
-    sp.add_argument("--requests", type=int, default=200)
+    sp.add_argument("--requests", type=int, default=200, choices=range(1, MAX_REQUESTS_PER_LEVEL + 1))
     sp.add_argument("--no-proxy-mode", action="store_true", help="Proxy yerine direct yukle")
 
     sp = sub.add_parser("throughput", parents=[common], help="Bant genisligi")
@@ -1099,7 +1109,7 @@ def build_parser():
     sp.add_argument("--url", required=True)
     sp.add_argument("--start", type=int, default=10, help="Baslangic eszamanliliik")
     sp.add_argument("--step", type=int, default=10, help="Her stage'de artis")
-    sp.add_argument("--max", dest="max_conc", type=int, default=200, help="Ust sinir eszamanliliik")
+    sp.add_argument("--max", dest="max_conc", type=int, default=200, choices=range(1, MAX_CONCURRENCY + 1), help="Ust sinir eszamanliliik")
     sp.add_argument("--stage-duration", type=int, default=15, help="Her stage suresi (sn)")
     sp.add_argument("--err-threshold", type=float, default=10.0, help="Kirilma: hata orani %% esigi")
     sp.add_argument("--latency-factor", type=float, default=4.0, help="Kirilma: p95 baseline'in kac kati")
@@ -1163,6 +1173,7 @@ def main():
         res = test_ssl(a.url, a.bypass_url, cfg, repeat=a.repeat)
     elif a.cmd == "load":
         levels = tuple(int(x) for x in a.levels.split(","))
+        validate_active_test(a.url, max(levels), a.requests, a.authorized_target)
         res = test_load(a.url, cfg, levels=levels, requests_per_level=a.requests,
                         via_proxy=not a.no_proxy_mode)
     elif a.cmd == "throughput":
@@ -1173,6 +1184,7 @@ def main():
         res = test_soak(a.url, cfg, duration_s=a.duration, interval_s=a.interval,
                         concurrency=a.concurrency)
     elif a.cmd == "stress":
+        validate_active_test(a.url, a.max_conc, authorized=a.authorized_target)
         res = test_stress(a.url, cfg, start=a.start, step=a.step, max_conc=a.max_conc,
                           stage_duration=a.stage_duration, err_threshold=a.err_threshold,
                           latency_factor=a.latency_factor, spike=a.spike,
@@ -1182,6 +1194,7 @@ def main():
                            via_proxy=not a.no_proxy_mode, headless=not a.headed)
     elif a.cmd == "full":
         a.levels = tuple(int(x) for x in a.levels.split(","))
+        validate_active_test(a.url, max(a.levels), a.requests, a.authorized_target)
         res = test_full(a, cfg)
 
     if res and not a.no_save:

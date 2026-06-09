@@ -32,6 +32,9 @@ Bottleneck Hunter, bir forward/web proxy'nin (ör. Forcepoint WCG) bir isteğe k
 # Çekirdek araç (zorunlu)
 pip install pycurl
 
+# Gelistirme ve test bagimliliklari
+pip install -e '.[test]'
+
 # Tarayıcı modülü için (yalnızca 'browser' testini kullanacaksan)
 pip install playwright
 playwright install chromium
@@ -63,11 +66,11 @@ python bottleneck_hunter.py latency --url https://intranet.local \
 
 # Kırılma noktası testi
 python bottleneck_hunter.py stress --url https://intranet.local \
-    --proxy http://10.0.0.1:8080 --start 10 --step 10 --max 300
+    --proxy http://10.0.0.1:8080 --start 10 --step 10 --max 200 --authorized-target
 
 # Tüm testler tek seferde
 python bottleneck_hunter.py full --url https://intranet.local \
-    --proxy http://10.0.0.1:8080 --bypass-url https://bypass.local --browser
+    --proxy http://10.0.0.1:8080 --bypass-url https://bypass.local --browser --authorized-target
 ```
 
 Global seçenekler (`--proxy`, `--no-color` vb.) hem alt komuttan önce hem sonra verilebilir.

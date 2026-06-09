@@ -11,3 +11,4 @@ bottleneck_latency_*.json
 bottleneck_latency_*_samples.csv
 bottleneck_latency_*_summary.txt
 .DS_Store
+*.html
