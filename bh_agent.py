@@ -23,6 +23,7 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 import bottleneck_hunter as bh
+from ai_health import check_ai_connection as run_ai_connection_check, print_ai_check
 
 # TTY'ye gore renk; tool ciktisini konsola basarken ANSI gurultusu olmasin
 bh.setup_color()
@@ -156,6 +157,17 @@ def configure_llm():
     llm = llm_base.bind_tools(tools)
     return llm_base
 
+
+def check_ai_connection():
+    """Make a minimal request to validate AI endpoint, credentials, and model access."""
+    return run_ai_connection_check(
+        lambda: configure_llm().invoke(
+            [HumanMessage(content="Reply only with OK")]
+        ).content,
+        os.environ.get("BOTTLENECK_LLM_MODEL", "gpt-4o"),
+    )
+
+
 SYSTEM = SystemMessage(content=(
     "Sen bir proxy performans analiz asistanisin. Kullanici bir proxy/web sitesi "
     "performansi sordugunda uygun olcum aracini cagir. Sonuc JSON'unu Turkce, kisa "
@@ -236,6 +248,9 @@ def run():
     sonucu LLM'e yorumlat. Test ciktisi onceki gibi komut ekraninda gorunur,
     en sonda 'AI Yorumu' bolumu eklenir."""
     import sys
+    if "--check-ai" in sys.argv:
+        raise SystemExit(print_ai_check(check_ai_connection()))
+
     if len(sys.argv) == 1:
         bh.setup_color()
         res = bh.interactive()          # menu: test secimi, normal renkli cikti

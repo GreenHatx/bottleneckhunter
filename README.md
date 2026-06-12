@@ -297,6 +297,14 @@ Testi sen çalıştırırsın, sonucu bir LLM yorumlar. Tool seçtirme yok (manu
 
 **Önce yapılandır:** `.env.example` dosyasındaki `BOTTLENECK_LLM_MODEL`, `BOTTLENECK_LLM_BASE_URL` ve `BOTTLENECK_LLM_API_KEY` değişkenlerini ortamında tanımla. Kurumsal sertifika için `http_client` satırını `httpx.Client(verify="/path/kurumsal-ca.pem")` yap.
 
+AI API bağlantısını test, ölçüm veya rapor üretmeden doğrulamak için:
+
+```bash
+python bh_agent.py --check-ai
+```
+
+Kontrol; endpoint erişimini, API anahtarını, model erişimini, yanıtı ve gecikmeyi doğrular. Başarılı durumda `0`, başarısız durumda `1` exit code döndürür ve hatayı bağlantı veya kimlik doğrulama kategorisiyle gösterir.
+
 ### Manuel mod (önerilen)
 
 CLI/menü akışını çalıştırır, normal çıktıyı ekrana basar, **sonunda "AI Yorumu" bölümü** ekler:

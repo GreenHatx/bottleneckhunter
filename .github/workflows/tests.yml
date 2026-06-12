@@ -10,4 +10,4 @@ jobs:
           python-version: "3.12"
       - run: pip install -e '.[test]'
       - run: pytest -q
-      - run: python -m py_compile bottleneck_hunter.py bh_agent.py config_loader.py reporting.py safety.py
+      - run: python -m py_compile bottleneck_hunter.py bh_agent.py ai_health.py config_loader.py reporting.py safety.py
