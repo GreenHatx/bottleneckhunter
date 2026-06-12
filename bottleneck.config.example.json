@@ -1,0 +1,21 @@
+{
+  "command": "latency",
+  "common": {
+    "proxy": "http://proxy.example:8080",
+    "proxy_user": null,
+    "insecure": false,
+    "ssl_no_revoke": false,
+    "timeout": 30,
+    "connect_timeout": 10,
+    "header": [],
+    "no_color": false,
+    "no_save": false,
+    "prefix": "bottleneck",
+    "authorized_target": false
+  },
+  "parameters": {
+    "url": "https://www.example.com",
+    "repeat": 20,
+    "no_direct": false
+  }
+}

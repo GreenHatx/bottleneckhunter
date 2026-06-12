@@ -40,6 +40,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
+from config_loader import expand_config_args
 from reporting import render_comparison_html, report_envelope
 from safety import MAX_CONCURRENCY, MAX_REQUESTS_PER_LEVEL, validate_active_test
 
@@ -1072,6 +1073,7 @@ def build_parser():
         prog="bottleneck_hunter.py",
         description=f"{APP_NAME} - Proxy performans & gecikme analiz araci",
         parents=[common])
+    p.add_argument("--config", help="Tum runtime ayarlarini iceren JSON config dosyasi")
     sub = p.add_subparsers(dest="cmd")
 
     sp = sub.add_parser("latency", parents=[common], help="Faz kirilimi (direct vs proxy)")
@@ -1153,7 +1155,7 @@ def main():
         return
 
     parser = build_parser()
-    a = parser.parse_args()
+    a = parser.parse_args(expand_config_args(sys.argv[1:]))
     setup_color(force_off=getattr(a, "no_color", False))
 
     if not a.cmd:

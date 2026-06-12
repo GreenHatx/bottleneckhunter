@@ -75,6 +75,23 @@ python bottleneck_hunter.py full --url https://intranet.local \
 
 Global seçenekler (`--proxy`, `--no-color` vb.) hem alt komuttan önce hem sonra verilebilir.
 
+### Config dosyasıyla çalıştırma
+
+Runtime sırasında sorulacak/aktarılacak tüm değerler JSON config dosyasından verilebilir. Örneği kopyalayıp düzenle:
+
+```bash
+cp bottleneck.config.example.json bottleneck.config.json
+python bottleneck_hunter.py --config bottleneck.config.json
+```
+
+Config üç bölümden oluşur: `command` çalıştırılacak testi, `common` ortak proxy/timeout/çıktı ayarlarını, `parameters` ise seçilen teste özel değerleri içerir. Komut satırında ayrıca verilen değerler config değerlerini ezer:
+
+```bash
+python bottleneck_hunter.py --config bottleneck.config.json --repeat 50
+```
+
+Gerçek proxy kullanıcı bilgileri veya diğer hassas değerler içerebileceği için `bottleneck.config.json` Git tarafından yok sayılır; örnek config yalnızca temsili değerler içerir.
+
 ---
 
 ## Test modülleri
