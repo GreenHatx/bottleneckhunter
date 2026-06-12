@@ -967,7 +967,7 @@ def prompt(text, default=None):
     return val if val else default
 
 
-def interactive():
+def interactive(save_prompt=True):
     print(banner())
     if pycurl is None:
         print(c("\nUYARI: pycurl yuklu degil. Kurun: pip install pycurl", Ansi.YELLOW))
@@ -1044,7 +1044,7 @@ def interactive():
         print(c("Gecersiz secim.", Ansi.RED))
         return None
 
-    if prompt("Raporu kaydet? (e/h)", "e").lower().startswith("e"):
+    if save_prompt and prompt("Raporu kaydet? (e/h)", "e").lower().startswith("e"):
         save_report(res)
     return res
 

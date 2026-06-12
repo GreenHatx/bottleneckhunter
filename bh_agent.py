@@ -251,21 +251,34 @@ def run():
     if "--check-ai" in sys.argv:
         raise SystemExit(print_ai_check(check_ai_connection()))
 
+    original_argv = list(sys.argv)
+    save_final_report = "--no-save" not in original_argv
+    prefix = "bottleneck"
+    if "--prefix" in original_argv:
+        prefix = original_argv[original_argv.index("--prefix") + 1]
+
     if len(sys.argv) == 1:
         bh.setup_color()
-        res = bh.interactive()          # menu: test secimi, normal renkli cikti
+        res = bh.interactive(save_prompt=False)  # Nihai rapor AI yorumundan sonra yazilir.
     else:
-        res = bh.main()                 # alt komut: python bh_agent.py latency --url ...
+        if save_final_report:
+            sys.argv.append("--no-save")
+        try:
+            res = bh.main()             # alt komut: python bh_agent.py latency --url ...
+        finally:
+            sys.argv[:] = original_argv
 
     if not res:
         return
 
     print("\n" + bh.c("=" * 28 + " AI Yorumu " + "=" * 28, bh.Ansi.MAGENTA, bold=True))
     try:
-        yorumla(res)
+        res["ai_analysis"] = yorumla(res)
     except Exception as e:
         print(bh.c(f"AI yorumu alinamadi: {e}", bh.Ansi.RED))
         print(bh.c("(Endpoint/SSL ayarlarini ve agi kontrol et.)", bh.Ansi.GREY))
+    if save_final_report:
+        bh.save_report(res, prefix=prefix)
 
 
 if __name__ == "__main__":

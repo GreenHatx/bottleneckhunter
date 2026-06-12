@@ -236,9 +236,10 @@ URL'yi şemasız (`x.com`) verirsen araç otomatik `https://` ekler.
 
 ## Çıktı ve raporlar
 
-Her koşu sonunda üç dosya yazılır (`--no-save` ile kapatılır):
+Her koşu sonunda dört dosya yazılır (`--no-save` ile kapatılır):
 
 - **`<prefix>_<test>_<zaman>.json`** — Tam sonuç (ham örnekler dahil).
+- **`<prefix>_<test>_<zaman>.html`** — Yönetici özeti, renkli metrik kartları, p50/p95/p99 tabloları, bulgular ve `bh_agent.py` kullanıldığında AI yorumu içeren nihai rapor.
 - **`<prefix>_<test>_<zaman>_samples.csv`** — Tekil istek örnekleri (varsa). curl ve tarayıcı örnekleri aynı dosyada farklı sütunlarla birleşir.
 - **`<prefix>_<test>_<zaman>_summary.txt`** — Ham örnekler atılmış okunabilir özet.
 
