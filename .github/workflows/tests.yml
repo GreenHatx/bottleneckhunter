@@ -8,6 +8,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e '.[test]'
+      - run: pip install -e '.[test,ai]'
       - run: pytest -q
       - run: python -m py_compile bottleneck_hunter.py bh_agent.py ai_health.py config_loader.py reporting.py safety.py

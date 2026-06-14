@@ -40,7 +40,7 @@ pip install playwright
 playwright install chromium
 
 # AI yorum katmanı için (yalnızca bh_agent.py kullanacaksan)
-pip install langchain-openai langchain-core httpx
+pip install -e '.[ai]'
 ```
 
 İki Python dosyası (`bottleneck_hunter.py` ve `bh_agent.py`) **aynı klasörde** durmalı; agent, çekirdeği modül olarak içe aktarır.

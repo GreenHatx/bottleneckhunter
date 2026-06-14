@@ -138,11 +138,12 @@ http_client = httpx.Client(verify=False)   # PROD'da kurumsal CA paketiyle degis
 
 llm_base = None
 llm = None
+DOTENV_PATH = Path(__file__).with_name(".env")
 
 
 def load_ai_environment():
     """Load local AI settings without overriding explicit environment values."""
-    load_dotenv(Path(__file__).with_name(".env"), override=False)
+    load_dotenv(DOTENV_PATH, override=False)
 
 
 def configure_llm():
@@ -154,7 +155,13 @@ def configure_llm():
     base_url = os.environ.get("BOTTLENECK_LLM_BASE_URL")
     api_key = os.environ.get("BOTTLENECK_LLM_API_KEY")
     if not base_url or not api_key:
-        raise RuntimeError("AI yorumu icin BOTTLENECK_LLM_BASE_URL ve BOTTLENECK_LLM_API_KEY gerekli")
+        missing = [name for name, value in (
+            ("BOTTLENECK_LLM_BASE_URL", base_url),
+            ("BOTTLENECK_LLM_API_KEY", api_key),
+        ) if not value]
+        raise RuntimeError(
+            f"Eksik AI ayari: {', '.join(missing)}. Beklenen .env konumu: {DOTENV_PATH}"
+        )
     llm_base = ChatOpenAI(
         model=os.environ.get("BOTTLENECK_LLM_MODEL", "gpt-4o"),
         base_url=base_url,
