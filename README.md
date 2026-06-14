@@ -146,6 +146,12 @@ python bottleneck_hunter.py latency --url https://x --repeat 20 [--no-direct]
 
 İnspekte edilen bir domain ile bypass listesindeki bir domaini proxy üzerinden kıyaslar; TLS fazındaki farkı SSL inspection maliyeti olarak verir.
 
+Explicit proxy adresi verilmezse araç ağın transparent proxy kullandığını varsayar
+ve `proxy_mode: transparent` olarak raporlar. Bypass URL'nin gerçekten kurumsal
+proxy politikasında inspection bypass listesinde olması gerekir; yalnız URL'yi
+config'e yazmak bypass sağlamaz. Her iki hedefte TLS zamanı `0 ms` ölçülürse araç
+bunu sıfır inspection maliyeti saymaz ve doğrulama uyarısı verir.
+
 ```bash
 python bottleneck_hunter.py ssl --url https://inspekte.com --bypass-url https://bypass.com --proxy http://p:8080
 ```

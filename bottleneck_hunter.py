@@ -422,12 +422,12 @@ def test_latency(url, cfg: ProxyConfig, repeat=20, compare_direct=True):
 # Test 2: SSL inspection maliyeti
 # --------------------------------------------------------------------------- #
 def test_ssl(inspected_url, bypass_url, cfg: ProxyConfig, repeat=20):
-    if not cfg.proxy:
-        raise ValueError("SSL inspection maliyeti testi icin proxy adresi gerekli")
+    proxy_mode = "explicit" if cfg.proxy else "transparent"
     print(f"\n{c('[ssl]', Ansi.CYAN, bold=True)} inspected={inspected_url}  "
-          f"bypass={bypass_url}  tekrar={repeat}")
+          f"bypass={bypass_url}  tekrar={repeat}  proxy={proxy_mode}")
     result = {"test": "ssl_inspection", "inspected_url": inspected_url,
               "bypass_url": bypass_url, "repeat": repeat,
+              "proxy_mode": proxy_mode,
               "started": now_iso(), "groups": {}}
 
     for name, url in (("inspected", inspected_url), ("bypass", bypass_url)):
@@ -449,6 +449,10 @@ def test_ssl(inspected_url, bypass_url, cfg: ProxyConfig, repeat=20):
     if ("inspected" in g and "bypass" in g
             and g["inspected"]["tls"].get("p50_ms") is not None
             and g["bypass"]["tls"].get("p50_ms") is not None):
+        if g["inspected"]["tls"]["p50_ms"] == 0 and g["bypass"]["tls"]["p50_ms"] == 0:
+            result["inspection_warning"] = "Her iki hedefte TLS zamanlamasi 0 ms; inspection maliyeti hesaplanmadi"
+            print("\n  " + c(">> Her iki hedefte TLS zamanlamasi 0 ms; inspection/bypass politikasini ve HTTPS erisimini dogrula.", Ansi.YELLOW))
+            return result
         d_tls = g["inspected"]["tls"]["p50_ms"] - g["bypass"]["tls"]["p50_ms"]
         d_tot = g["inspected"]["total"]["p50_ms"] - g["bypass"]["total"]["p50_ms"]
         result["inspection_tls_overhead_p50_ms"] = round(d_tls, 2)
@@ -1070,9 +1074,6 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
             no_direct = config.get("parameters", {}).get("no_direct", False)
             res = test_latency(url, cfg, repeat=repeat, compare_direct=bool(cfg.proxy) and not no_direct)
         elif choice == "2":
-            if not cfg.proxy:
-                print(c("SSL inspection testi icin config'te gercek bir proxy adresi gerekli.", Ansi.RED))
-                continue
             bypass = _interactive_value(config, "parameters", "bypass_url", "Bypass (inspekte edilmeyen) URL", "https://www.example.org")
             res = test_ssl(url, bypass, cfg, repeat=repeat)
         elif choice == "3":
