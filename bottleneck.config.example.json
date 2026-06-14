@@ -14,12 +14,12 @@
     "authorized_target": false
   },
   "parameters": {
-    "url": "https://www.example.com",
-    "repeat": 20,
-    "bypass_url": null,
+    "url": "https://nasa.gov",
+    "repeat": 5,
+    "bypass_url": "https://www.microsoft.com",
     "throughput_url": null,
-    "levels": "10,25,50,100",
-    "requests": 200,
+    "levels": "1,2,5",
+    "requests": 10,
     "cache_rounds": 5,
     "browser": false,
     "soak": 0,
