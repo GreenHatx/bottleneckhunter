@@ -4,6 +4,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+ai_config_local.py
 .venv/
 venv/
 temp/

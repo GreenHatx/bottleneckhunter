@@ -309,6 +309,12 @@ yükler; sistem ortam değişkenleri varsa `.env` değerlerini ezer. `.env` Git
 tarafından yok sayılır. Kurumsal sertifika için `http_client` satırını
 `httpx.Client(verify="/path/kurumsal-ca.pem")` yap.
 
+`.env` yerine doğrudan Python kodunda yerel ayar tutmak için
+`ai_config_local.example.py` dosyasını `ai_config_local.py` adıyla kopyalayıp
+içindeki üç değeri düzenleyebilirsin. `ai_config_local.py` Git tarafından yok
+sayılır ve GitHub'a gönderilmez. Öncelik sırası: sistem ortam değişkeni, `.env`,
+`ai_config_local.py`, varsayılan model.
+
 AI API bağlantısını test, ölçüm veya rapor üretmeden doğrulamak için:
 
 ```bash

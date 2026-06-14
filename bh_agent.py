@@ -15,6 +15,7 @@ Gereksinim:  pip install langchain-openai langchain-core httpx
 import io
 import json
 import contextlib
+import importlib.util
 import os
 from pathlib import Path
 
@@ -139,11 +140,28 @@ http_client = httpx.Client(verify=False)   # PROD'da kurumsal CA paketiyle degis
 llm_base = None
 llm = None
 DOTENV_PATH = Path(__file__).with_name(".env")
+LOCAL_AI_CONFIG_PATH = Path(__file__).with_name("ai_config_local.py")
+
+
+def load_local_ai_config():
+    """Load secrets from the ignored local Python config when present."""
+    if not LOCAL_AI_CONFIG_PATH.exists():
+        return {}
+    spec = importlib.util.spec_from_file_location("ai_config_local", LOCAL_AI_CONFIG_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return {
+        name: getattr(module, name, None)
+        for name in ("BOTTLENECK_LLM_MODEL", "BOTTLENECK_LLM_BASE_URL", "BOTTLENECK_LLM_API_KEY")
+    }
 
 
 def load_ai_environment():
     """Load local AI settings without overriding explicit environment values."""
     load_dotenv(DOTENV_PATH, override=False)
+    for name, value in load_local_ai_config().items():
+        if value:
+            os.environ.setdefault(name, str(value))
 
 
 def configure_llm():
@@ -160,7 +178,8 @@ def configure_llm():
             ("BOTTLENECK_LLM_API_KEY", api_key),
         ) if not value]
         raise RuntimeError(
-            f"Eksik AI ayari: {', '.join(missing)}. Beklenen .env konumu: {DOTENV_PATH}"
+            f"Eksik AI ayari: {', '.join(missing)}. Yerel kod ayari: {LOCAL_AI_CONFIG_PATH}; "
+            f"alternatif .env konumu: {DOTENV_PATH}"
         )
     llm_base = ChatOpenAI(
         model=os.environ.get("BOTTLENECK_LLM_MODEL", "gpt-4o"),
