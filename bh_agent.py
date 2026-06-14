@@ -17,6 +17,7 @@ import json
 import contextlib
 import importlib.util
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -30,6 +31,12 @@ from ai_health import check_ai_connection as run_ai_connection_check, print_ai_c
 
 # TTY'ye gore renk; tool ciktisini konsola basarken ANSI gurultusu olmasin
 bh.setup_color()
+
+
+def clean_ai_output(content) -> str:
+    """Remove model reasoning blocks before displaying or saving the answer."""
+    text = str(content or "")
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
 
 
 # --------------------------------------------------------------------------- #
@@ -229,8 +236,9 @@ def yorumla(result: dict, ek_soru: str = "") -> str:
     if ek_soru:
         icerik += f"\n\nEk soru: {ek_soru}"
     response = configure_llm().invoke([YORUMCU, HumanMessage(content=icerik)])
-    print(response.content)
-    return response.content
+    answer = clean_ai_output(response.content)
+    print(answer)
+    return answer
 
 
 def yorumla_dosya(json_path: str, ek_soru: str = "") -> str:
@@ -253,8 +261,9 @@ def ask(soru: str, max_steps: int = 5):
 
         # Tool cagrisi yoksa nihai cevap gelmistir
         if not response.tool_calls:
-            print(f"\nYorum: {response.content}")
-            return response.content
+            answer = clean_ai_output(response.content)
+            print(f"\nYorum: {answer}")
+            return answer
 
         # Tum tool cagrilarini calistir, sonuclari geri besle
         for tc in response.tool_calls:
