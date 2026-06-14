@@ -40,7 +40,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
-from config_loader import expand_config_args, load_config
+from config_loader import expand_config_args, load_config, test_parameters
 from reporting import render_comparison_html, report_envelope
 from safety import MAX_CONCURRENCY, MAX_REQUESTS_PER_LEVEL, validate_active_test
 
@@ -862,23 +862,44 @@ def test_browser(url, cfg: ProxyConfig, repeat=5, via_proxy=True, headless=True)
 # --------------------------------------------------------------------------- #
 # Test 8: Full
 # --------------------------------------------------------------------------- #
-def test_full(args, cfg: ProxyConfig):
+def test_full(args, cfg: ProxyConfig, tests=None):
     print("\n" + c("========== FULL TEST ==========", Ansi.CYAN, bold=True))
     out = {"test": "full", "started": now_iso(), "components": {}}
+    tests = tests or {}
+    latency = tests.get("latency", {})
+    ssl = tests.get("ssl", {})
+    load = tests.get("load", {})
+    cache = tests.get("cache", {})
+    throughput = tests.get("throughput", {})
+    browser = tests.get("browser", {})
+    soak = tests.get("soak", {})
+    load_levels = load.get("levels", args.levels)
+    if isinstance(load_levels, str):
+        load_levels = tuple(int(x) for x in load_levels.split(","))
     out["components"]["latency"] = test_latency(
-        args.url, cfg, repeat=args.repeat, compare_direct=bool(cfg.proxy))
-    if args.bypass_url:
-        out["components"]["ssl"] = test_ssl(args.url, args.bypass_url, cfg, repeat=args.repeat)
+        latency.get("url", args.url), cfg, repeat=latency.get("repeat", args.repeat), compare_direct=bool(cfg.proxy))
+    bypass_url = ssl.get("bypass_url", args.bypass_url)
+    if bypass_url:
+        out["components"]["ssl"] = test_ssl(ssl.get("url", args.url), bypass_url, cfg,
+                                               repeat=ssl.get("repeat", args.repeat))
     out["components"]["load"] = test_load(
-        args.url, cfg, levels=args.levels, requests_per_level=args.requests)
-    out["components"]["cache"] = test_cache(args.url, cfg, rounds=args.cache_rounds)
-    if args.throughput_url:
-        out["components"]["throughput"] = test_throughput(args.throughput_url, cfg, repeat=args.repeat)
-    if getattr(args, "browser", False):
-        out["components"]["browser"] = test_browser(args.url, cfg, repeat=args.repeat)
-    if args.soak > 0:
-        out["components"]["soak"] = test_soak(args.url, cfg, duration_s=args.soak,
-                                              interval_s=args.soak_interval)
+        load.get("url", args.url), cfg, levels=tuple(load_levels),
+        requests_per_level=load.get("requests", args.requests))
+    out["components"]["cache"] = test_cache(cache.get("url", args.url), cfg,
+                                               rounds=cache.get("rounds", args.cache_rounds))
+    throughput_url = throughput.get("url", args.throughput_url)
+    if throughput_url:
+        out["components"]["throughput"] = test_throughput(throughput_url, cfg,
+                                                              repeat=throughput.get("repeat", args.repeat))
+    if browser.get("enabled", getattr(args, "browser", False)):
+        out["components"]["browser"] = test_browser(browser.get("url", args.url), cfg,
+                                                        repeat=browser.get("repeat", args.repeat),
+                                                        headless=not browser.get("headed", False))
+    soak_duration = soak.get("duration", args.soak)
+    if soak_duration > 0:
+        out["components"]["soak"] = test_soak(soak.get("url", args.url), cfg, duration_s=soak_duration,
+                                                  interval_s=soak.get("interval", args.soak_interval),
+                                                  concurrency=soak.get("concurrency", 5))
     return out
 
 
@@ -1033,8 +1054,8 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
         print(f"  {c('10',Ansi.BLUE)}) AI baglanti kontrolu")
         print(f"  {c('11',Ansi.BLUE)}) Config goruntule")
         print(f"  {c('0',Ansi.BLUE)}) Cikis")
-        command_choices = {name: str(index) for index, name in enumerate(
-            ("latency", "ssl", "load", "throughput", "cache", "soak", "stress", "browser", "full"), 1)}
+        command_names = ("latency", "ssl", "load", "throughput", "cache", "soak", "stress", "browser", "full")
+        command_choices = {name: str(index) for index, name in enumerate(command_names, 1)}
         choice = str(prompt("Secim (0-11)", command_choices.get(config.get("command"), "1")))
 
         if choice == "0":
@@ -1057,6 +1078,10 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
             print(c("Gecersiz secim.", Ansi.RED))
             continue
 
+        selected_command = command_names[int(choice) - 1]
+        param_config = dict(config)
+        param_config["parameters"] = test_parameters(config, selected_command)
+
         cfg = ProxyConfig()
         cfg.proxy = _interactive_value(config, "common", "proxy", "Explicit proxy (bos = direct/transparent proxy)", None)
         if cfg.proxy:
@@ -1067,21 +1092,21 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
         cfg.ssl_no_revoke = norev if isinstance(norev, bool) else bool(norev) and norev.lower().startswith("e")
         cfg.timeout = int(_interactive_value(config, "common", "timeout", "Timeout (sn)", "30"))
 
-        url = _interactive_value(config, "parameters", "url", "Hedef URL", "https://www.example.com")
-        repeat = int(_interactive_value(config, "parameters", "repeat", "Tekrar sayisi", "20"))
+        url = _interactive_value(param_config, "parameters", "url", "Hedef URL", "https://www.example.com")
+        repeat = int(_interactive_value(param_config, "parameters", "repeat", "Tekrar sayisi", "20"))
 
         if choice == "1":
-            no_direct = config.get("parameters", {}).get("no_direct", False)
+            no_direct = param_config.get("parameters", {}).get("no_direct", False)
             res = test_latency(url, cfg, repeat=repeat, compare_direct=bool(cfg.proxy) and not no_direct)
         elif choice == "2":
-            bypass = _interactive_value(config, "parameters", "bypass_url", "Bypass (inspekte edilmeyen) URL", "https://www.example.org")
+            bypass = _interactive_value(param_config, "parameters", "bypass_url", "Bypass (inspekte edilmeyen) URL", "https://www.example.org")
             res = test_ssl(url, bypass, cfg, repeat=repeat)
         elif choice == "3":
-            lv = _interactive_value(config, "parameters", "levels", "Eszamanliliik seviyeleri (virgulle)", "10,25,50,100")
+            lv = _interactive_value(param_config, "parameters", "levels", "Eszamanliliik seviyeleri (virgulle)", "10,25,50,100")
             if isinstance(lv, list):
                 lv = ",".join(str(x) for x in lv)
             levels = tuple(int(x) for x in lv.split(","))
-            rpl = int(_interactive_value(config, "parameters", "requests", "Istek/seviye", "200"))
+            rpl = int(_interactive_value(param_config, "parameters", "requests", "Istek/seviye", "200"))
             authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
             if not _validate_interactive_active_test(url, max(levels), rpl, authorized):
                 continue
@@ -1089,19 +1114,19 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
         elif choice == "4":
             res = test_throughput(url, cfg, repeat=repeat)
         elif choice == "5":
-            rounds = int(_interactive_value(config, "parameters", "rounds", "Tur sayisi", "5"))
+            rounds = int(_interactive_value(param_config, "parameters", "rounds", "Tur sayisi", "5"))
             res = test_cache(url, cfg, rounds=rounds)
         elif choice == "6":
-            dur = int(_interactive_value(config, "parameters", "duration", "Sure (sn)", "300"))
-            interval = int(_interactive_value(config, "parameters", "interval", "Aralik (sn)", "5"))
-            conc = int(_interactive_value(config, "parameters", "concurrency", "Eszamanliliik", "5"))
+            dur = int(_interactive_value(param_config, "parameters", "duration", "Sure (sn)", "300"))
+            interval = int(_interactive_value(param_config, "parameters", "interval", "Aralik (sn)", "5"))
+            conc = int(_interactive_value(param_config, "parameters", "concurrency", "Eszamanliliik", "5"))
             res = test_soak(url, cfg, duration_s=dur, interval_s=interval, concurrency=conc)
         elif choice == "7":
-            st = int(_interactive_value(config, "parameters", "start", "Baslangic eszamanliliik", "10"))
-            step = int(_interactive_value(config, "parameters", "step", "Adim", "10"))
-            mx = int(_interactive_value(config, "parameters", "max", "Ust sinir", "200"))
-            sd = int(_interactive_value(config, "parameters", "stage_duration", "Stage suresi (sn)", "15"))
-            spike_value = _interactive_value(config, "parameters", "spike", "Spike (ani sok + toparlanma) modu? (e/h)", "h")
+            st = int(_interactive_value(param_config, "parameters", "start", "Baslangic eszamanliliik", "10"))
+            step = int(_interactive_value(param_config, "parameters", "step", "Adim", "10"))
+            mx = int(_interactive_value(param_config, "parameters", "max", "Ust sinir", "200"))
+            sd = int(_interactive_value(param_config, "parameters", "stage_duration", "Stage suresi (sn)", "15"))
+            spike_value = _interactive_value(param_config, "parameters", "spike", "Spike (ani sok + toparlanma) modu? (e/h)", "h")
             spike = spike_value if isinstance(spike_value, bool) else spike_value.lower().startswith("e")
             authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
             if not _validate_interactive_active_test(url, mx, authorized=authorized):
@@ -1110,24 +1135,29 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
         elif choice == "8":
             res = test_browser(url, cfg, repeat=repeat)
         else:
-            levels = _interactive_value(config, "parameters", "levels", "Yuk seviyeleri", "10,25,50,100")
+            levels = _interactive_value(param_config, "parameters", "levels", "Yuk seviyeleri", "10,25,50,100")
             if isinstance(levels, list):
                 levels = ",".join(str(x) for x in levels)
             ns = argparse.Namespace(
                 url=url, repeat=repeat,
-                bypass_url=_interactive_value(config, "parameters", "bypass_url", "Bypass URL (bos = atla)", None),
-                throughput_url=_interactive_value(config, "parameters", "throughput_url", "Throughput icin buyuk dosya URL (bos = atla)", None),
+                bypass_url=_interactive_value(param_config, "parameters", "bypass_url", "Bypass URL (bos = atla)", None),
+                throughput_url=_interactive_value(param_config, "parameters", "throughput_url", "Throughput icin buyuk dosya URL (bos = atla)", None),
                 levels=tuple(int(x) for x in levels.split(",")),
-                requests=int(_interactive_value(config, "parameters", "requests", "Yuk istek/seviye", "200")),
-                cache_rounds=int(_interactive_value(config, "parameters", "cache_rounds", "Cache tur", "5")),
-                browser=_yes(_interactive_value(config, "parameters", "browser", "Tarayici testi de calissin mi? (e/h)", "h")),
-                soak=int(_interactive_value(config, "parameters", "soak", "Soak sure sn (0 = atla)", "0")),
-                soak_interval=int(_interactive_value(config, "parameters", "soak_interval", "Soak aralik sn", "5")),
+                requests=int(_interactive_value(param_config, "parameters", "requests", "Yuk istek/seviye", "200")),
+                cache_rounds=int(_interactive_value(param_config, "parameters", "cache_rounds", "Cache tur", "5")),
+                browser=_yes(_interactive_value(param_config, "parameters", "browser", "Tarayici testi de calissin mi? (e/h)", "h")),
+                soak=int(_interactive_value(param_config, "parameters", "soak", "Soak sure sn (0 = atla)", "0")),
+                soak_interval=int(_interactive_value(param_config, "parameters", "soak_interval", "Soak aralik sn", "5")),
             )
             authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
-            if not _validate_interactive_active_test(url, max(ns.levels), ns.requests, authorized):
+            full_load = config.get("tests", {}).get("load", {})
+            full_load_levels = full_load.get("levels", ns.levels)
+            if isinstance(full_load_levels, str):
+                full_load_levels = tuple(int(x) for x in full_load_levels.split(","))
+            if not _validate_interactive_active_test(full_load.get("url", url), max(full_load_levels),
+                                                     full_load.get("requests", ns.requests), authorized):
                 continue
-            res = test_full(ns, cfg)
+            res = test_full(ns, cfg, tests=config.get("tests"))
 
         if save_prompt:
             no_save = config.get("common", {}).get("no_save")
@@ -1244,6 +1274,9 @@ def main():
         interactive()
         return
 
+    config_data = None
+    if "--config" in sys.argv:
+        config_data = load_config(sys.argv[sys.argv.index("--config") + 1])
     parser = build_parser()
     a = parser.parse_args(expand_config_args(sys.argv[1:]))
     setup_color(force_off=getattr(a, "no_color", False))
@@ -1286,8 +1319,14 @@ def main():
                            via_proxy=not a.no_proxy_mode, headless=not a.headed)
     elif a.cmd == "full":
         a.levels = tuple(int(x) for x in a.levels.split(","))
-        validate_active_test(a.url, max(a.levels), a.requests, a.authorized_target)
-        res = test_full(a, cfg)
+        full_tests = config_data.get("tests", {}) if config_data else {}
+        load_cfg = full_tests.get("load", {})
+        load_levels = load_cfg.get("levels", a.levels)
+        if isinstance(load_levels, str):
+            load_levels = tuple(int(x) for x in load_levels.split(","))
+        validate_active_test(load_cfg.get("url", a.url), max(load_levels),
+                             load_cfg.get("requests", a.requests), a.authorized_target)
+        res = test_full(a, cfg, tests=full_tests)
 
     if res and not a.no_save:
         save_report(res, prefix=a.prefix)

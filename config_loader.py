@@ -5,6 +5,13 @@ from pathlib import Path
 COMMANDS = {"latency", "ssl", "load", "throughput", "cache", "soak", "stress", "browser", "full"}
 
 
+def test_parameters(data, command):
+    """Merge legacy parameters with the selected per-test section."""
+    values = dict(data.get("parameters", {}))
+    values.update(data.get("tests", {}).get(command, {}))
+    return values
+
+
 def load_config(path, require_command=True):
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -52,7 +59,7 @@ def expand_config_args(argv):
     if explicit_command:
         remaining.remove(explicit_command)
     common = data.get("common", {})
-    parameters = data.get("parameters", {})
+    parameters = test_parameters(data, command)
     if not isinstance(common, dict) or not isinstance(parameters, dict):
-        raise ValueError("'common' ve 'parameters' JSON nesnesi olmali")
+        raise ValueError("'common', 'parameters' ve test bolumleri JSON nesnesi olmali")
     return [command, *_option_args(common), *_option_args(parameters), *remaining]

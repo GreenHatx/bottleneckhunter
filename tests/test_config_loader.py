@@ -37,3 +37,15 @@ def test_interactive_config_allows_empty_command(tmp_path):
     path = write_config(tmp_path, {"command": "", "common": {}, "parameters": {}})
 
     assert load_config(path, require_command=False)["command"] == ""
+
+
+def test_selected_per_test_config_overrides_legacy_parameters(tmp_path):
+    path = write_config(tmp_path, {
+        "command": "ssl",
+        "parameters": {"url": "https://legacy", "repeat": 5},
+        "tests": {"ssl": {"url": "https://inspected", "bypass_url": "https://bypass"}},
+    })
+
+    args = expand_config_args(["--config", path])
+
+    assert args == ["ssl", "--url", "https://inspected", "--repeat", "5", "--bypass-url", "https://bypass"]

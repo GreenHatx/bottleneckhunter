@@ -98,6 +98,18 @@ python bottleneck_hunter.py --config bottleneck.config.json --repeat 50
 
 Gerçek proxy kullanıcı bilgileri veya diğer hassas değerler içerebileceği için `bottleneck.config.json` Git tarafından yok sayılır; örnek config yalnızca temsili değerler içerir.
 
+Yeni config yapısındaki `tests` nesnesi her testin tüm girdilerini ayrı tutar:
+`latency`, `ssl`, `load`, `throughput`, `cache`, `soak`, `stress`, `browser` ve
+`full`. Etkileşimli menü seçilen testin bölümünü kullanır. Eski `parameters`
+bölümü geriye uyumluluk için desteklenir; aynı alan `tests.<seçilen_test>` içinde
+varsa test bölümü önceliklidir.
+
+`full` çalıştırıldığında tek bir ortak parametre setini kopyalamak yerine ilgili
+test bölümleri tekrar kullanılır. Örneğin SSL hedefleri `tests.ssl`, yük seviyeleri
+`tests.load`, cache turu `tests.cache`, browser ayarları `tests.browser` ve soak
+ayarları `tests.soak` bölümünden alınır. `stress`, güvenlik ve süre nedeniyle full
+akışına otomatik dahil edilmez.
+
 Örnek config varsayılan olarak `full` akışını gösterir. `full`; latency, load ve
 cache testlerini her zaman çalıştırır. Aşağıdaki alanlarla ek aşamalar açılır:
 
