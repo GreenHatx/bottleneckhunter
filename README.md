@@ -98,6 +98,20 @@ python bottleneck_hunter.py --config bottleneck.config.json --repeat 50
 
 Gerçek proxy kullanıcı bilgileri veya diğer hassas değerler içerebileceği için `bottleneck.config.json` Git tarafından yok sayılır; örnek config yalnızca temsili değerler içerir.
 
+Örnek config varsayılan olarak `full` akışını gösterir. `full`; latency, load ve
+cache testlerini her zaman çalıştırır. Aşağıdaki alanlarla ek aşamalar açılır:
+
+- `bypass_url`: doluysa SSL inspection karşılaştırması çalışır.
+- `throughput_url`: doluysa büyük dosya throughput testi çalışır.
+- `browser`: `true` ise gerçek Chromium testi çalışır.
+- `soak`: `0` üstü saniye verilirse uzun süreli soak testi çalışır.
+- `levels`, `requests`, `cache_rounds`, `soak_interval`: ilgili testlerin yük ve süre ayarlarıdır.
+
+`full` ve `load`, hedefe gerçek eşzamanlı trafik üretir. Bu nedenle yalnızca
+test etme yetkin bulunan hedeflerde `common.authorized_target` değerini `true`
+yap. Bu alan bir kimlik doğrulama bilgisi değildir; yanlışlıkla canlı veya
+yetkisiz hedefe yük testi başlatmayı önleyen açık insan onayıdır.
+
 ---
 
 ## Test modülleri
