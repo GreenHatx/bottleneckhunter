@@ -50,7 +50,7 @@ except ImportError:
     pycurl = None
 
 APP_NAME = "Bottleneck Hunter"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 
 # --------------------------------------------------------------------------- #
