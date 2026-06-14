@@ -1010,6 +1010,14 @@ def _yes(value):
     return value if isinstance(value, bool) else str(value).lower() in ("true", "e", "evet")
 
 
+def _authorized(config, test_name):
+    """Prefer a test-specific authorization, then fall back to common."""
+    test_value = config.get("tests", {}).get(test_name, {}).get("authorized_target")
+    if test_value is not None and test_value != "":
+        return _yes(test_value)
+    return _yes(config.get("common", {}).get("authorized_target", False))
+
+
 def _validate_interactive_active_test(*args, **kwargs):
     try:
         validate_active_test(*args, **kwargs)
@@ -1107,7 +1115,7 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
                 lv = ",".join(str(x) for x in lv)
             levels = tuple(int(x) for x in lv.split(","))
             rpl = int(_interactive_value(param_config, "parameters", "requests", "Istek/seviye", "200"))
-            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            authorized = _authorized(config, "load")
             if not _validate_interactive_active_test(url, max(levels), rpl, authorized):
                 continue
             res = test_load(url, cfg, levels=levels, requests_per_level=rpl)
@@ -1128,7 +1136,7 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
             sd = int(_interactive_value(param_config, "parameters", "stage_duration", "Stage suresi (sn)", "15"))
             spike_value = _interactive_value(param_config, "parameters", "spike", "Spike (ani sok + toparlanma) modu? (e/h)", "h")
             spike = spike_value if isinstance(spike_value, bool) else spike_value.lower().startswith("e")
-            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            authorized = _authorized(config, "stress")
             if not _validate_interactive_active_test(url, mx, authorized=authorized):
                 continue
             res = test_stress(url, cfg, start=st, step=step, max_conc=mx, stage_duration=sd, spike=spike)
@@ -1149,7 +1157,7 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
                 soak=int(_interactive_value(param_config, "parameters", "soak", "Soak sure sn (0 = atla)", "0")),
                 soak_interval=int(_interactive_value(param_config, "parameters", "soak_interval", "Soak aralik sn", "5")),
             )
-            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            authorized = _authorized(config, "full") or _authorized(config, "load")
             full_load = config.get("tests", {}).get("load", {})
             full_load_levels = full_load.get("levels", ns.levels)
             if isinstance(full_load_levels, str):
@@ -1324,8 +1332,9 @@ def main():
         load_levels = load_cfg.get("levels", a.levels)
         if isinstance(load_levels, str):
             load_levels = tuple(int(x) for x in load_levels.split(","))
+        full_authorized = a.authorized_target or (_authorized(config_data, "load") if config_data else False)
         validate_active_test(load_cfg.get("url", a.url), max(load_levels),
-                             load_cfg.get("requests", a.requests), a.authorized_target)
+                             load_cfg.get("requests", a.requests), full_authorized)
         res = test_full(a, cfg, tests=full_tests)
 
     if res and not a.no_save:

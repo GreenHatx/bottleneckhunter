@@ -76,3 +76,13 @@ def test_interactive_rejects_unauthorized_load_and_returns_to_menu(tmp_path, mon
     bh.interactive()
 
     assert "Yuk testi baslatilmadi" in capsys.readouterr().out
+
+
+def test_test_specific_authorization_overrides_common_false():
+    config = {
+        "common": {"authorized_target": False},
+        "tests": {"load": {"authorized_target": True}},
+    }
+
+    assert bh._authorized(config, "load") is True
+    assert bh._authorized(config, "stress") is False

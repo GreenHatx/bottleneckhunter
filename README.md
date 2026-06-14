@@ -124,6 +124,11 @@ test etme yetkin bulunan hedeflerde `common.authorized_target` değerini `true`
 yap. Bu alan bir kimlik doğrulama bilgisi değildir; yanlışlıkla canlı veya
 yetkisiz hedefe yük testi başlatmayı önleyen açık insan onayıdır.
 
+Yeni per-test yapısında onay ilgili bölümde de verilebilir:
+`tests.load.authorized_target`, `tests.stress.authorized_target` veya
+`tests.full.authorized_target`. Teste özel değer varsa `common.authorized_target`
+değerinden önceliklidir. JSON boolean değeri tırnaksız `true`/`false` olmalıdır.
+
 ---
 
 ## Test modülleri

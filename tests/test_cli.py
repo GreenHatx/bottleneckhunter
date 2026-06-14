@@ -82,3 +82,19 @@ def test_full_reuses_per_test_configuration(monkeypatch):
         ("latency", "latency", 2), ("ssl", "inspected", "bypass", 3),
         ("load", "load", (2, 3), 4), ("cache", "cache", 5),
     ]
+
+
+def test_full_accepts_load_section_authorization(tmp_path, monkeypatch):
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({
+        "command": "full",
+        "common": {"no_save": True, "authorized_target": False},
+        "tests": {
+            "full": {"url": "https://target"},
+            "load": {"url": "https://target", "levels": "1", "requests": 1, "authorized_target": True},
+        },
+    }))
+    monkeypatch.setattr("sys.argv", ["bottleneck_hunter.py", "--config", str(config)])
+    monkeypatch.setattr(bh, "test_full", lambda *args, **kwargs: {"test": "full"})
+
+    bh.main()
