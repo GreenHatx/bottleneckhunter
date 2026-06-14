@@ -16,8 +16,10 @@ import io
 import json
 import contextlib
 import os
+from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
@@ -138,11 +140,17 @@ llm_base = None
 llm = None
 
 
+def load_ai_environment():
+    """Load local AI settings without overriding explicit environment values."""
+    load_dotenv(Path(__file__).with_name(".env"), override=False)
+
+
 def configure_llm():
     """Validate settings and initialize the optional AI layer on first use."""
     global llm_base, llm
     if llm_base is not None:
         return llm_base
+    load_ai_environment()
     base_url = os.environ.get("BOTTLENECK_LLM_BASE_URL")
     api_key = os.environ.get("BOTTLENECK_LLM_API_KEY")
     if not base_url or not api_key:
@@ -160,6 +168,7 @@ def configure_llm():
 
 def check_ai_connection():
     """Make a minimal request to validate AI endpoint, credentials, and model access."""
+    load_ai_environment()
     return run_ai_connection_check(
         lambda: configure_llm().invoke(
             [HumanMessage(content="Reply only with OK")]

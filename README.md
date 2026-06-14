@@ -302,7 +302,12 @@ Teşhis sırası:
 
 Testi sen çalıştırırsın, sonucu bir LLM yorumlar. Tool seçtirme yok (manuel mod); istersen LLM'in tool seçtiği otomatik mod da var.
 
-**Önce yapılandır:** `.env.example` dosyasındaki `BOTTLENECK_LLM_MODEL`, `BOTTLENECK_LLM_BASE_URL` ve `BOTTLENECK_LLM_API_KEY` değişkenlerini ortamında tanımla. Kurumsal sertifika için `http_client` satırını `httpx.Client(verify="/path/kurumsal-ca.pem")` yap.
+**Önce yapılandır:** `.env.example` dosyasını `.env` adıyla kopyala ve
+`BOTTLENECK_LLM_MODEL`, `BOTTLENECK_LLM_BASE_URL` ile `BOTTLENECK_LLM_API_KEY`
+değerlerini doldur. `bh_agent.py`, kendi klasöründeki `.env` dosyasını otomatik
+yükler; sistem ortam değişkenleri varsa `.env` değerlerini ezer. `.env` Git
+tarafından yok sayılır. Kurumsal sertifika için `http_client` satırını
+`httpx.Client(verify="/path/kurumsal-ca.pem")` yap.
 
 AI API bağlantısını test, ölçüm veya rapor üretmeden doğrulamak için:
 
