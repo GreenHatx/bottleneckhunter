@@ -40,7 +40,7 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
-from config_loader import expand_config_args
+from config_loader import expand_config_args, load_config
 from reporting import render_comparison_html, report_envelope
 from safety import MAX_CONCURRENCY, MAX_REQUESTS_PER_LEVEL, validate_active_test
 
@@ -967,86 +967,165 @@ def prompt(text, default=None):
     return val if val else default
 
 
-def interactive(save_prompt=True):
+def _interactive_value(config, section, key, text, default=None):
+    value = config.get(section, {}).get(key)
+    if value is not None and value != "":
+        return value
+    return prompt(text, default)
+
+
+def _yes(value):
+    return value if isinstance(value, bool) else str(value).lower() in ("true", "e", "evet")
+
+
+def _validate_interactive_active_test(*args, **kwargs):
+    try:
+        validate_active_test(*args, **kwargs)
+        return True
+    except ValueError as exc:
+        print(c(f"Yuk testi baslatilmadi: {exc}", Ansi.RED))
+        return False
+
+
+def _display_config(config):
+    import copy
+    visible = copy.deepcopy(config)
+    common = visible.get("common", {})
+    if common.get("proxy_user"):
+        common["proxy_user"] = "***"
+    print(json.dumps(visible, ensure_ascii=False, indent=2))
+
+
+def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.json"):
     print(banner())
     if pycurl is None:
         print(c("\nUYARI: pycurl yuklu degil. Kurun: pip install pycurl", Ansi.YELLOW))
 
-    print("\nHangi testi calistirmak istersin?")
-    print(f"  {c('1',Ansi.BLUE)}) latency    - Faz kirilimi (direct vs proxy)")
-    print(f"  {c('2',Ansi.BLUE)}) ssl        - SSL inspection maliyeti")
-    print(f"  {c('3',Ansi.BLUE)}) load       - Eszamanliliik / yuk")
-    print(f"  {c('4',Ansi.BLUE)}) throughput - Bant genisligi")
-    print(f"  {c('5',Ansi.BLUE)}) cache      - Cache miss vs hit")
-    print(f"  {c('6',Ansi.BLUE)}) soak       - Uzun sureli degradasyon")
-    print(f"  {c('7',Ansi.BLUE)}) stress     - Kirilma noktasi (rampa / spike)")
-    print(f"  {c('8',Ansi.BLUE)}) browser    - Gercek tarayici (render dahil)")
-    print(f"  {c('9',Ansi.BLUE)}) full       - Tum testler")
-    choice = prompt("Secim (1-9)", "1")
+    try:
+        config = load_config(config_path, require_command=False)
+        print(c(f"\nConfig yuklendi: {config_path}", Ansi.GREEN))
+    except FileNotFoundError:
+        config = {"common": {}, "parameters": {}}
 
-    cfg = ProxyConfig()
-    cfg.proxy = prompt("Proxy (bos = direct)", None)
-    if cfg.proxy:
-        cfg.proxy_user = prompt("Proxy auth (kullanici:parola, bos = yok)", None)
-    insec = prompt("SSL dogrulamayi atla? (e/h)", "h")
-    cfg.insecure = bool(insec) and insec.lower().startswith("e")
-    norev = prompt("Revocation (CRL/OCSP) kontrolunu kapat? Schannel/izole ag icin (e/h)", "h")
-    cfg.ssl_no_revoke = bool(norev) and norev.lower().startswith("e")
-    cfg.timeout = int(prompt("Timeout (sn)", "30"))
+    last_result = None
+    while True:
+        print("\nHangi islemi yapmak istersin?")
+        print(f"  {c('1',Ansi.BLUE)}) latency    - Faz kirilimi (direct vs proxy)")
+        print(f"  {c('2',Ansi.BLUE)}) ssl        - SSL inspection maliyeti")
+        print(f"  {c('3',Ansi.BLUE)}) load       - Eszamanliliik / yuk")
+        print(f"  {c('4',Ansi.BLUE)}) throughput - Bant genisligi")
+        print(f"  {c('5',Ansi.BLUE)}) cache      - Cache miss vs hit")
+        print(f"  {c('6',Ansi.BLUE)}) soak       - Uzun sureli degradasyon")
+        print(f"  {c('7',Ansi.BLUE)}) stress     - Kirilma noktasi (rampa / spike)")
+        print(f"  {c('8',Ansi.BLUE)}) browser    - Gercek tarayici (render dahil)")
+        print(f"  {c('9',Ansi.BLUE)}) full       - Tum testler")
+        print(f"  {c('10',Ansi.BLUE)}) AI baglanti kontrolu")
+        print(f"  {c('11',Ansi.BLUE)}) Config goruntule")
+        print(f"  {c('0',Ansi.BLUE)}) Cikis")
+        command_choices = {name: str(index) for index, name in enumerate(
+            ("latency", "ssl", "load", "throughput", "cache", "soak", "stress", "browser", "full"), 1)}
+        choice = str(prompt("Secim (0-11)", command_choices.get(config.get("command"), "1")))
 
-    url = prompt("Hedef URL", "https://www.example.com")
-    repeat = int(prompt("Tekrar sayisi", "20"))
+        if choice == "0":
+            return last_result
+        if choice == "10":
+            if ai_check is None:
+                try:
+                    from bh_agent import check_ai_connection
+                    from ai_health import print_ai_check
+                    print_ai_check(check_ai_connection())
+                except Exception as exc:
+                    print(c(f"AI baglanti kontrolu basarisiz: {exc}", Ansi.RED))
+            else:
+                ai_check()
+            continue
+        if choice == "11":
+            _display_config(config)
+            continue
+        if choice not in set("123456789"):
+            print(c("Gecersiz secim.", Ansi.RED))
+            continue
 
-    if choice == "1":
-        res = test_latency(url, cfg, repeat=repeat, compare_direct=bool(cfg.proxy))
-    elif choice == "2":
-        bypass = prompt("Bypass (inspekte edilmeyen) URL", "https://www.example.org")
-        res = test_ssl(url, bypass, cfg, repeat=repeat)
-    elif choice == "3":
-        lv = prompt("Eszamanliliik seviyeleri (virgulle)", "10,25,50,100")
-        levels = tuple(int(x) for x in lv.split(","))
-        rpl = int(prompt("Istek/seviye", "200"))
-        res = test_load(url, cfg, levels=levels, requests_per_level=rpl)
-    elif choice == "4":
-        res = test_throughput(url, cfg, repeat=repeat)
-    elif choice == "5":
-        rounds = int(prompt("Tur sayisi", "5"))
-        res = test_cache(url, cfg, rounds=rounds)
-    elif choice == "6":
-        dur = int(prompt("Sure (sn)", "300"))
-        interval = int(prompt("Aralik (sn)", "5"))
-        conc = int(prompt("Eszamanliliik", "5"))
-        res = test_soak(url, cfg, duration_s=dur, interval_s=interval, concurrency=conc)
-    elif choice == "7":
-        st = int(prompt("Baslangic eszamanliliik", "10"))
-        step = int(prompt("Adim", "10"))
-        mx = int(prompt("Ust sinir", "200"))
-        sd = int(prompt("Stage suresi (sn)", "15"))
-        spike = prompt("Spike (ani sok + toparlanma) modu? (e/h)", "h").lower().startswith("e")
-        res = test_stress(url, cfg, start=st, step=step, max_conc=mx,
-                          stage_duration=sd, spike=spike)
-    elif choice == "8":
-        res = test_browser(url, cfg, repeat=repeat)
-    elif choice == "9":
-        ns = argparse.Namespace(
-            url=url, repeat=repeat,
-            bypass_url=prompt("Bypass URL (bos = atla)", None),
-            throughput_url=prompt("Throughput icin buyuk dosya URL (bos = atla)", None),
-            levels=tuple(int(x) for x in prompt("Yuk seviyeleri", "10,25,50,100").split(",")),
-            requests=int(prompt("Yuk istek/seviye", "200")),
-            cache_rounds=int(prompt("Cache tur", "5")),
-            browser=prompt("Tarayici testi de calissin mi? (e/h)", "h").lower().startswith("e"),
-            soak=int(prompt("Soak sure sn (0 = atla)", "0")),
-            soak_interval=5,
-        )
-        res = test_full(ns, cfg)
-    else:
-        print(c("Gecersiz secim.", Ansi.RED))
-        return None
+        cfg = ProxyConfig()
+        cfg.proxy = _interactive_value(config, "common", "proxy", "Proxy (bos = direct)", None)
+        if cfg.proxy:
+            cfg.proxy_user = _interactive_value(config, "common", "proxy_user", "Proxy auth (kullanici:parola, bos = yok)", None)
+        insec = _interactive_value(config, "common", "insecure", "SSL dogrulamayi atla? (e/h)", "h")
+        cfg.insecure = insec if isinstance(insec, bool) else bool(insec) and insec.lower().startswith("e")
+        norev = _interactive_value(config, "common", "ssl_no_revoke", "Revocation (CRL/OCSP) kontrolunu kapat? Schannel/izole ag icin (e/h)", "h")
+        cfg.ssl_no_revoke = norev if isinstance(norev, bool) else bool(norev) and norev.lower().startswith("e")
+        cfg.timeout = int(_interactive_value(config, "common", "timeout", "Timeout (sn)", "30"))
 
-    if save_prompt and prompt("Raporu kaydet? (e/h)", "e").lower().startswith("e"):
-        save_report(res)
-    return res
+        url = _interactive_value(config, "parameters", "url", "Hedef URL", "https://www.example.com")
+        repeat = int(_interactive_value(config, "parameters", "repeat", "Tekrar sayisi", "20"))
+
+        if choice == "1":
+            no_direct = config.get("parameters", {}).get("no_direct", False)
+            res = test_latency(url, cfg, repeat=repeat, compare_direct=bool(cfg.proxy) and not no_direct)
+        elif choice == "2":
+            bypass = _interactive_value(config, "parameters", "bypass_url", "Bypass (inspekte edilmeyen) URL", "https://www.example.org")
+            res = test_ssl(url, bypass, cfg, repeat=repeat)
+        elif choice == "3":
+            lv = _interactive_value(config, "parameters", "levels", "Eszamanliliik seviyeleri (virgulle)", "10,25,50,100")
+            if isinstance(lv, list):
+                lv = ",".join(str(x) for x in lv)
+            levels = tuple(int(x) for x in lv.split(","))
+            rpl = int(_interactive_value(config, "parameters", "requests", "Istek/seviye", "200"))
+            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            if not _validate_interactive_active_test(url, max(levels), rpl, authorized):
+                continue
+            res = test_load(url, cfg, levels=levels, requests_per_level=rpl)
+        elif choice == "4":
+            res = test_throughput(url, cfg, repeat=repeat)
+        elif choice == "5":
+            rounds = int(_interactive_value(config, "parameters", "rounds", "Tur sayisi", "5"))
+            res = test_cache(url, cfg, rounds=rounds)
+        elif choice == "6":
+            dur = int(_interactive_value(config, "parameters", "duration", "Sure (sn)", "300"))
+            interval = int(_interactive_value(config, "parameters", "interval", "Aralik (sn)", "5"))
+            conc = int(_interactive_value(config, "parameters", "concurrency", "Eszamanliliik", "5"))
+            res = test_soak(url, cfg, duration_s=dur, interval_s=interval, concurrency=conc)
+        elif choice == "7":
+            st = int(_interactive_value(config, "parameters", "start", "Baslangic eszamanliliik", "10"))
+            step = int(_interactive_value(config, "parameters", "step", "Adim", "10"))
+            mx = int(_interactive_value(config, "parameters", "max", "Ust sinir", "200"))
+            sd = int(_interactive_value(config, "parameters", "stage_duration", "Stage suresi (sn)", "15"))
+            spike_value = _interactive_value(config, "parameters", "spike", "Spike (ani sok + toparlanma) modu? (e/h)", "h")
+            spike = spike_value if isinstance(spike_value, bool) else spike_value.lower().startswith("e")
+            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            if not _validate_interactive_active_test(url, mx, authorized=authorized):
+                continue
+            res = test_stress(url, cfg, start=st, step=step, max_conc=mx, stage_duration=sd, spike=spike)
+        elif choice == "8":
+            res = test_browser(url, cfg, repeat=repeat)
+        else:
+            levels = _interactive_value(config, "parameters", "levels", "Yuk seviyeleri", "10,25,50,100")
+            if isinstance(levels, list):
+                levels = ",".join(str(x) for x in levels)
+            ns = argparse.Namespace(
+                url=url, repeat=repeat,
+                bypass_url=_interactive_value(config, "parameters", "bypass_url", "Bypass URL (bos = atla)", None),
+                throughput_url=_interactive_value(config, "parameters", "throughput_url", "Throughput icin buyuk dosya URL (bos = atla)", None),
+                levels=tuple(int(x) for x in levels.split(",")),
+                requests=int(_interactive_value(config, "parameters", "requests", "Yuk istek/seviye", "200")),
+                cache_rounds=int(_interactive_value(config, "parameters", "cache_rounds", "Cache tur", "5")),
+                browser=_yes(_interactive_value(config, "parameters", "browser", "Tarayici testi de calissin mi? (e/h)", "h")),
+                soak=int(_interactive_value(config, "parameters", "soak", "Soak sure sn (0 = atla)", "0")),
+                soak_interval=int(_interactive_value(config, "parameters", "soak_interval", "Soak aralik sn", "5")),
+            )
+            authorized = _yes(_interactive_value(config, "common", "authorized_target", "Hedef icin yuk testi yetkin var mi? (e/h)", "h"))
+            if not _validate_interactive_active_test(url, max(ns.levels), ns.requests, authorized):
+                continue
+            res = test_full(ns, cfg)
+
+        if save_prompt:
+            no_save = config.get("common", {}).get("no_save")
+            should_save = not no_save if no_save is not None and no_save != "" else (
+                str(prompt("Raporu kaydet? (e/h)", "e")).lower().startswith("e")
+            )
+            if should_save:
+                save_report(res, prefix=config.get("common", {}).get("prefix", "bottleneck"))
+        last_result = res
 
 
 # --------------------------------------------------------------------------- #

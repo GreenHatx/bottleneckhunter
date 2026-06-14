@@ -5,13 +5,15 @@ from pathlib import Path
 COMMANDS = {"latency", "ssl", "load", "throughput", "cache", "soak", "stress", "browser", "full"}
 
 
-def load_config(path):
+def load_config(path, require_command=True):
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("Config kok degeri JSON nesnesi olmali")
     command = data.get("command")
-    if command not in COMMANDS:
+    if require_command and command not in COMMANDS:
         raise ValueError("Config icinde gecerli bir 'command' gerekli")
+    if command is not None and command != "" and command not in COMMANDS:
+        raise ValueError("Config icindeki 'command' gecersiz")
     return data
 
 

@@ -57,6 +57,12 @@ pip install langchain-openai langchain-core httpx
 python bottleneck_hunter.py
 ```
 
+Menü aynı klasörde `bottleneck.config.json` varsa otomatik yükler. Config içinde
+dolu olan alanları tekrar sormaz; yalnızca seçilen test için eksik değerleri
+sorar. Test tamamlandıktan sonra menüye döner. Menüden aktif config görüntülenebilir,
+AI bağlantısı kontrol edilebilir veya `0` ile çıkılabilir. Config görüntüsünde
+proxy kimlik bilgisi maskelenir.
+
 **Doğrudan komutla:**
 
 ```bash

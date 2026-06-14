@@ -259,7 +259,10 @@ def run():
 
     if len(sys.argv) == 1:
         bh.setup_color()
-        res = bh.interactive(save_prompt=False)  # Nihai rapor AI yorumundan sonra yazilir.
+        res = bh.interactive(
+            save_prompt=False,
+            ai_check=lambda: print_ai_check(check_ai_connection()),
+        )  # Nihai rapor AI yorumundan sonra yazilir.
     else:
         if save_final_report:
             sys.argv.append("--no-save")

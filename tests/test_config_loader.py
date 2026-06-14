@@ -31,3 +31,9 @@ def test_config_rejects_unknown_command(tmp_path):
     path = write_config(tmp_path, {"command": "destroy", "parameters": {}})
     with pytest.raises(ValueError, match="command"):
         load_config(path)
+
+
+def test_interactive_config_allows_empty_command(tmp_path):
+    path = write_config(tmp_path, {"command": "", "common": {}, "parameters": {}})
+
+    assert load_config(path, require_command=False)["command"] == ""
