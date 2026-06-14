@@ -152,6 +152,11 @@ proxy politikasında inspection bypass listesinde olması gerekir; yalnız URL'y
 config'e yazmak bypass sağlamaz. Her iki hedefte TLS zamanı `0 ms` ölçülürse araç
 bunu sıfır inspection maliyeti saymaz ve doğrulama uyarısı verir.
 
+Transparent proxy ortamında `common.proxy` ve `common.proxy_user` alanlarını
+`null` bırak. Örnek config bu nedenle explicit proxy içermez. `proxy` alanına
+temsili bir adres bile yazılırsa araç bunu explicit proxy kabul eder ve proxy
+auth bilgisi sorabilir.
+
 ```bash
 python bottleneck_hunter.py ssl --url https://inspekte.com --bypass-url https://bypass.com --proxy http://p:8080
 ```

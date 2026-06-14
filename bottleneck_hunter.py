@@ -1058,7 +1058,7 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
             continue
 
         cfg = ProxyConfig()
-        cfg.proxy = _interactive_value(config, "common", "proxy", "Proxy (bos = direct)", None)
+        cfg.proxy = _interactive_value(config, "common", "proxy", "Explicit proxy (bos = direct/transparent proxy)", None)
         if cfg.proxy:
             cfg.proxy_user = _interactive_value(config, "common", "proxy_user", "Proxy auth (kullanici:parola, bos = yok)", None)
         insec = _interactive_value(config, "common", "insecure", "SSL dogrulamayi atla? (e/h)", "h")

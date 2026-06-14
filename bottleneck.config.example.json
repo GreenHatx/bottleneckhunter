@@ -1,7 +1,7 @@
 {
   "command": "full",
   "common": {
-    "proxy": "http://proxy.example:8080",
+    "proxy": null,
     "proxy_user": null,
     "insecure": false,
     "ssl_no_revoke": false,
