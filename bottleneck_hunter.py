@@ -422,6 +422,8 @@ def test_latency(url, cfg: ProxyConfig, repeat=20, compare_direct=True):
 # Test 2: SSL inspection maliyeti
 # --------------------------------------------------------------------------- #
 def test_ssl(inspected_url, bypass_url, cfg: ProxyConfig, repeat=20):
+    if not cfg.proxy:
+        raise ValueError("SSL inspection maliyeti testi icin proxy adresi gerekli")
     print(f"\n{c('[ssl]', Ansi.CYAN, bold=True)} inspected={inspected_url}  "
           f"bypass={bypass_url}  tekrar={repeat}")
     result = {"test": "ssl_inspection", "inspected_url": inspected_url,
@@ -435,15 +437,20 @@ def test_ssl(inspected_url, bypass_url, cfg: ProxyConfig, repeat=20):
         rep = _phase_report(samples)
         rep["raw"] = [asdict(s) for s in samples]
         result["groups"][name] = rep
-        tls = rep["tls"].get("p50_ms", 0)
-        tot = rep["total"].get("p50_ms", 0)
-        print(f"  {c(name,Ansi.BLUE):>10}  p50 total={cval(tot,'total')} ms  "
-              f"p50 tls={cval(tls,'tls')} ms")
+        tls = rep["tls"].get("p50_ms")
+        tot = rep["total"].get("p50_ms")
+        if tls is None or tot is None:
+            print(f"  {c(name,Ansi.BLUE):>10}  {c('olculemedi (tum istekler basarisiz)', Ansi.RED)}")
+        else:
+            print(f"  {c(name,Ansi.BLUE):>10}  p50 total={cval(tot,'total')} ms  "
+                  f"p50 tls={cval(tls,'tls')} ms")
 
     g = result["groups"]
-    if "inspected" in g and "bypass" in g:
-        d_tls = g["inspected"]["tls"].get("p50_ms", 0) - g["bypass"]["tls"].get("p50_ms", 0)
-        d_tot = g["inspected"]["total"].get("p50_ms", 0) - g["bypass"]["total"].get("p50_ms", 0)
+    if ("inspected" in g and "bypass" in g
+            and g["inspected"]["tls"].get("p50_ms") is not None
+            and g["bypass"]["tls"].get("p50_ms") is not None):
+        d_tls = g["inspected"]["tls"]["p50_ms"] - g["bypass"]["tls"]["p50_ms"]
+        d_tot = g["inspected"]["total"]["p50_ms"] - g["bypass"]["total"]["p50_ms"]
         result["inspection_tls_overhead_p50_ms"] = round(d_tls, 2)
         result["inspection_total_overhead_p50_ms"] = round(d_tot, 2)
         print("\n  " + hl(">> SSL inspection ek TLS maliyeti (p50): ")
@@ -1063,6 +1070,9 @@ def interactive(save_prompt=True, ai_check=None, config_path="bottleneck.config.
             no_direct = config.get("parameters", {}).get("no_direct", False)
             res = test_latency(url, cfg, repeat=repeat, compare_direct=bool(cfg.proxy) and not no_direct)
         elif choice == "2":
+            if not cfg.proxy:
+                print(c("SSL inspection testi icin config'te gercek bir proxy adresi gerekli.", Ansi.RED))
+                continue
             bypass = _interactive_value(config, "parameters", "bypass_url", "Bypass (inspekte edilmeyen) URL", "https://www.example.org")
             res = test_ssl(url, bypass, cfg, repeat=repeat)
         elif choice == "3":

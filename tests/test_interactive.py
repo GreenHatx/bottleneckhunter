@@ -76,3 +76,20 @@ def test_interactive_rejects_unauthorized_load_and_returns_to_menu(tmp_path, mon
     bh.interactive()
 
     assert "Yuk testi baslatilmadi" in capsys.readouterr().out
+
+
+def test_interactive_ssl_without_proxy_returns_to_menu(tmp_path, monkeypatch, capsys):
+    config = tmp_path / "bottleneck.config.json"
+    config.write_text(json.dumps({
+        "command": "ssl",
+        "common": {"insecure": False, "ssl_no_revoke": False, "timeout": 10, "no_save": True},
+        "parameters": {"url": "https://inspected.example", "repeat": 1},
+    }))
+    answers = iter(["2", "", "0"])
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(bh, "prompt", lambda text, default=None: next(answers))
+    monkeypatch.setattr(bh, "test_ssl", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not run")))
+
+    bh.interactive()
+
+    assert "gercek bir proxy adresi gerekli" in capsys.readouterr().out
