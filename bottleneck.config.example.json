@@ -42,7 +42,7 @@
     },
     "soak": {
       "url": "https://nasa.gov",
-      "duration": 0,
+      "duration": 300,
       "interval": 5,
       "concurrency": 5
     },
@@ -61,7 +61,6 @@
     "browser": {
       "url": "https://nasa.gov",
       "repeat": 5,
-      "enabled": false,
       "headed": false,
       "no_proxy_mode": false
     },

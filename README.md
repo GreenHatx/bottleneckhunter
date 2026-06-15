@@ -106,17 +106,19 @@ varsa test bölümü önceliklidir.
 
 `full` çalıştırıldığında tek bir ortak parametre setini kopyalamak yerine ilgili
 test bölümleri tekrar kullanılır. Örneğin SSL hedefleri `tests.ssl`, yük seviyeleri
-`tests.load`, cache turu `tests.cache`, browser ayarları `tests.browser` ve soak
-ayarları `tests.soak` bölümünden alınır. `stress`, güvenlik ve süre nedeniyle full
-akışına otomatik dahil edilmez.
+`tests.load`, cache turu `tests.cache`, browser ayarları `tests.browser`, soak
+ayarları `tests.soak` ve stress ayarları `tests.stress` bölümünden alınır. `full`
+seçildiğinde browser, soak ve stress dahil tüm testler çalışır. Stress ve load için
+`tests.full.authorized_target`, ilgili test yetkisi veya ortak yetki açık olmalıdır.
 
 Örnek config varsayılan olarak `full` akışını gösterir. `full`; latency, load ve
 cache testlerini her zaman çalıştırır. Aşağıdaki alanlarla ek aşamalar açılır:
 
 - `bypass_url`: doluysa SSL inspection karşılaştırması çalışır.
 - `throughput_url`: doluysa büyük dosya throughput testi çalışır.
-- `browser`: `true` ise gerçek Chromium testi çalışır.
-- `soak`: `0` üstü saniye verilirse uzun süreli soak testi çalışır.
+- Browser testi gerçek Chromium ile çalışır.
+- Soak süresi `tests.soak.duration` alanından alınır; `0` ise full akışında 300 saniye kullanılır.
+- Stress testi açık hedef yetki onayıyla çalışır.
 - `levels`, `requests`, `cache_rounds`, `soak_interval`: ilgili testlerin yük ve süre ayarlarıdır.
 
 `full` ve `load`, hedefe gerçek eşzamanlı trafik üretir. Bu nedenle yalnızca
