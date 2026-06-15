@@ -873,6 +873,7 @@ def test_full(args, cfg: ProxyConfig, tests=None):
     throughput = tests.get("throughput", {})
     browser = tests.get("browser", {})
     soak = tests.get("soak", {})
+    stress = tests.get("stress", {})
     load_levels = load.get("levels", args.levels)
     if isinstance(load_levels, str):
         load_levels = tuple(int(x) for x in load_levels.split(","))
@@ -900,6 +901,17 @@ def test_full(args, cfg: ProxyConfig, tests=None):
         out["components"]["soak"] = test_soak(soak.get("url", args.url), cfg, duration_s=soak_duration,
                                                   interval_s=soak.get("interval", args.soak_interval),
                                                   concurrency=soak.get("concurrency", 5))
+    if stress.get("enabled", False):
+        out["components"]["stress"] = test_stress(
+            stress.get("url", args.url), cfg,
+            start=stress.get("start", 10), step=stress.get("step", 10),
+            max_conc=stress.get("max", 200),
+            stage_duration=stress.get("stage_duration", 15),
+            err_threshold=stress.get("err_threshold", 10.0),
+            latency_factor=stress.get("latency_factor", 4.0),
+            spike=stress.get("spike", False),
+            via_proxy=not stress.get("no_proxy_mode", False),
+        )
     return out
 
 
@@ -1335,6 +1347,11 @@ def main():
         full_authorized = a.authorized_target or (_authorized(config_data, "load") if config_data else False)
         validate_active_test(load_cfg.get("url", a.url), max(load_levels),
                              load_cfg.get("requests", a.requests), full_authorized)
+        stress_cfg = full_tests.get("stress", {})
+        if stress_cfg.get("enabled", False):
+            stress_authorized = a.authorized_target or _authorized(config_data, "stress")
+            validate_active_test(stress_cfg.get("url", a.url), stress_cfg.get("max", 200),
+                                 authorized=stress_authorized)
         res = test_full(a, cfg, tests=full_tests)
 
     if res and not a.no_save:

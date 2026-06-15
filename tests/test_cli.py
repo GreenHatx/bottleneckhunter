@@ -84,6 +84,31 @@ def test_full_reuses_per_test_configuration(monkeypatch):
     ]
 
 
+def test_full_runs_optional_browser_soak_and_stress(monkeypatch):
+    calls = []
+    monkeypatch.setattr(bh, "test_latency", lambda *args, **kwargs: {})
+    monkeypatch.setattr(bh, "test_load", lambda *args, **kwargs: {})
+    monkeypatch.setattr(bh, "test_cache", lambda *args, **kwargs: {})
+    monkeypatch.setattr(bh, "test_browser", lambda url, cfg, **kwargs: calls.append(("browser", url, kwargs)) or {})
+    monkeypatch.setattr(bh, "test_soak", lambda url, cfg, **kwargs: calls.append(("soak", url, kwargs)) or {})
+    monkeypatch.setattr(bh, "test_stress", lambda url, cfg, **kwargs: calls.append(("stress", url, kwargs)) or {})
+    args = type("Args", (), {
+        "url": "legacy", "repeat": 1, "bypass_url": None, "levels": (1,), "requests": 1,
+        "cache_rounds": 1, "throughput_url": None, "browser": False, "soak": 0, "soak_interval": 5,
+    })()
+
+    result = bh.test_full(args, bh.ProxyConfig(), tests={
+        "browser": {"enabled": True, "url": "browser", "repeat": 2},
+        "soak": {"url": "soak", "duration": 3, "interval": 1, "concurrency": 2},
+        "stress": {"enabled": True, "url": "stress", "max": 20, "no_proxy_mode": True},
+    })
+
+    assert set(result["components"]) >= {"browser", "soak", "stress"}
+    assert [call[0] for call in calls] == ["browser", "soak", "stress"]
+    assert calls[-1][2]["max_conc"] == 20
+    assert calls[-1][2]["via_proxy"] is False
+
+
 def test_full_accepts_load_section_authorization(tmp_path, monkeypatch):
     config = tmp_path / "config.json"
     config.write_text(json.dumps({

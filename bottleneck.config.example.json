@@ -48,6 +48,7 @@
     },
     "stress": {
       "url": "https://nasa.gov",
+      "enabled": false,
       "start": 10,
       "step": 10,
       "max": 200,
