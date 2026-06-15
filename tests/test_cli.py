@@ -66,6 +66,9 @@ def test_full_reuses_per_test_configuration(monkeypatch):
     monkeypatch.setattr(bh, "test_ssl", lambda url, bypass, cfg, repeat: calls.append(("ssl", url, bypass, repeat)) or {})
     monkeypatch.setattr(bh, "test_load", lambda url, cfg, levels, requests_per_level: calls.append(("load", url, levels, requests_per_level)) or {})
     monkeypatch.setattr(bh, "test_cache", lambda url, cfg, rounds: calls.append(("cache", url, rounds)) or {})
+    monkeypatch.setattr(bh, "test_browser", lambda *args, **kwargs: {})
+    monkeypatch.setattr(bh, "test_soak", lambda *args, **kwargs: {})
+    monkeypatch.setattr(bh, "test_stress", lambda *args, **kwargs: {})
     args = type("Args", (), {
         "url": "legacy", "repeat": 1, "bypass_url": None, "levels": (1,), "requests": 1,
         "cache_rounds": 1, "throughput_url": None, "browser": False, "soak": 0, "soak_interval": 5,
@@ -84,7 +87,7 @@ def test_full_reuses_per_test_configuration(monkeypatch):
     ]
 
 
-def test_full_runs_optional_browser_soak_and_stress(monkeypatch):
+def test_full_always_runs_browser_soak_and_stress(monkeypatch):
     calls = []
     monkeypatch.setattr(bh, "test_latency", lambda *args, **kwargs: {})
     monkeypatch.setattr(bh, "test_load", lambda *args, **kwargs: {})
@@ -98,9 +101,9 @@ def test_full_runs_optional_browser_soak_and_stress(monkeypatch):
     })()
 
     result = bh.test_full(args, bh.ProxyConfig(), tests={
-        "browser": {"enabled": True, "url": "browser", "repeat": 2},
+        "browser": {"enabled": False, "url": "browser", "repeat": 2},
         "soak": {"url": "soak", "duration": 3, "interval": 1, "concurrency": 2},
-        "stress": {"enabled": True, "url": "stress", "max": 20, "no_proxy_mode": True},
+        "stress": {"enabled": False, "url": "stress", "max": 20, "no_proxy_mode": True},
     })
 
     assert set(result["components"]) >= {"browser", "soak", "stress"}
