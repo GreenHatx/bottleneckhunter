@@ -1,6 +1,6 @@
 # Bottleneck Hunter
 
-**Proxy / web proxy performans ve gecikme analiz aracı** — v1.2.0
+**Proxy / web proxy performans ve gecikme analiz aracı** — v1.3.0
 
 Bottleneck Hunter, bir forward/web proxy'nin bir isteğe kattığı gecikmeyi tek bir rakama indirgemek yerine **fazlarına ayırarak** ölçer: DNS çözümleme, TCP bağlantısı, TLS el sıkışması, sunucu işleme (TTFB) ve transfer. Böylece darboğazın proxy'de mi yoksa upstream'de mi olduğunu, SSL inspection'ın ne kadar maliyet getirdiğini, sistemin hangi yükte kırıldığını ve gerçek bir tarayıcının render dahil sayfayı ne kadar sürede açtığını ayrı ayrı görürsün.
 
